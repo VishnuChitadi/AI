@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wikipedia Chain Finder</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Wikipedia Chain Finder</h1>
+        <p class="subtitle">Find the shortest path between two Wikipedia articles</p>
+
+        <form id="search-form">
+            <div class="input-group">
+                <label for="start">Start Article</label>
+                <input type="text" id="start" name="start" placeholder="e.g., Albert Einstein" required>
+            </div>
+
+            <div class="input-group">
+                <label for="end">End Article</label>
+                <input type="text" id="end" name="end" placeholder="e.g., Physics" required>
+            </div>
+
+            <button type="submit" id="submit-btn">Find Path</button>
+        </form>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <span>Searching...</span>
+        </div>
+
+        <div id="error" class="error hidden"></div>
+
+        <div id="results" class="results hidden">
+            <h2>Path Found!</h2>
+            <p id="path-length"></p>
+            <div id="path-display"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
