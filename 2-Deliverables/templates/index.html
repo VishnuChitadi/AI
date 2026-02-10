@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sokobot - Sokoban Solver</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
+
+  header { background: #16213e; padding: 1rem 2rem; text-align: center; border-bottom: 2px solid #0f3460; }
+  header h1 { font-size: 1.8rem; color: #e94560; }
+  header p { color: #aaa; font-size: 0.9rem; margin-top: 0.25rem; }
+
+  .container { max-width: 1100px; margin: 1.5rem auto; padding: 0 1.5rem; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+  .tab { padding: 0.6rem 1.5rem; background: #16213e; border: 1px solid #0f3460; border-radius: 6px 6px 0 0;
+         cursor: pointer; color: #aaa; font-size: 0.95rem; }
+  .tab.active { background: #0f3460; color: #e94560; border-bottom-color: #0f3460; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Layout */
+  .main-layout { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; }
+  .grid-area { flex: 0 0 auto; }
+  .controls-area { flex: 1; min-width: 260px; }
+
+  /* Grid */
+  .grid-container { display: inline-block; border: 2px solid #0f3460; border-radius: 4px; background: #111; }
+  .grid-row { display: flex; }
+  .cell { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+          font-size: 1.4rem; border: 1px solid #222; }
+  .cell-wall { background: #444; }
+  .cell-floor { background: #2a2a3e; }
+  .cell-goal { background: #1a3a2a; }
+  .cell-box { background: #8b6914; border-radius: 4px; }
+  .cell-box-on-goal { background: #2e8b57; border-radius: 4px; }
+  .cell-player { background: #2a4a8e; border-radius: 50%; }
+  .cell-player-on-goal { background: #2e6e8b; border-radius: 50%; }
+
+  /* Controls */
+  .control-group { margin-bottom: 1.2rem; }
+  .control-group label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 0.4rem; }
+  select, button, input { font-family: inherit; font-size: 0.95rem; }
+  select { width: 100%; padding: 0.5rem; background: #16213e; color: #eee; border: 1px solid #0f3460; border-radius: 4px; }
+  button { padding: 0.5rem 1.2rem; background: #e94560; color: #fff; border: none; border-radius: 4px;
+           cursor: pointer; font-weight: 600; }
+  button:hover { background: #c73652; }
+  button:disabled { background: #555; cursor: not-allowed; }
+  .btn-secondary { background: #0f3460; }
+  .btn-secondary:hover { background: #1a4a80; }
+
+  .playback { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .playback button { padding: 0.4rem 0.8rem; font-size: 0.9rem; }
+
+  .status { padding: 0.8rem; background: #16213e; border-radius: 4px; border: 1px solid #0f3460;
+            font-size: 0.9rem; min-height: 2.5rem; margin-top: 0.5rem; }
+  .status.error { border-color: #e94560; color: #e94560; }
+  .status.success { border-color: #2e8b57; color: #7ddf9e; }
+
+  .step-info { font-size: 0.9rem; color: #aaa; margin-top: 0.5rem; }
+
+  /* Designer */
+  .designer-controls { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1rem; }
+  .designer-controls .control-group { margin-bottom: 0; }
+  .designer-controls input[type=number] { width: 60px; padding: 0.4rem; background: #16213e; color: #eee;
+    border: 1px solid #0f3460; border-radius: 4px; }
+  .tool-btn { padding: 0.4rem 0.8rem; font-size: 0.85rem; border: 2px solid transparent; }
+  .tool-btn.active { border-color: #e94560; }
+  .designer-grid .cell { cursor: pointer; }
+  .designer-grid .cell:hover { outline: 2px solid #e94560; outline-offset: -2px; }
+
+  .tool-palette { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+
+  /* Speed slider */
+  input[type=range] { width: 120px; accent-color: #e94560; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sokobot</h1>
+  <p>A* Sokoban Solver with Hungarian-matching heuristic</p>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <div class="tab active" data-tab="solve">Solve Puzzles</div>
+    <div class="tab" data-tab="design">Puzzle Designer</div>
+  </div>
+
+  <!-- ═══ SOLVE PANEL ═══ -->
+  <div class="panel active" id="panel-solve">
+    <div class="main-layout">
+      <div class="grid-area">
+        <div class="grid-container" id="solve-grid"></div>
+      </div>
+      <div class="controls-area">
+        <div class="control-group">
+          <label>Select a puzzle</label>
+          <select id="puzzle-select"><option value="">Loading...</option></select>
+        </div>
+        <div class="control-group">
+          <button id="btn-solve">Solve</button>
+        </div>
+        <div id="playback-section" style="display:none">
+          <div class="control-group">
+            <label>Solution playback</label>
+            <div class="playback">
+              <button class="btn-secondary" id="btn-first">|&lt;</button>
+              <button class="btn-secondary" id="btn-prev">&lt;</button>
+              <button class="btn-secondary" id="btn-play">Play</button>
+              <button class="btn-secondary" id="btn-next">&gt;</button>
+              <button class="btn-secondary" id="btn-last">&gt;|</button>
+              <label style="margin-left:0.5rem; display:flex; align-items:center; gap:0.3rem;">
+                Speed <input type="range" id="speed-slider" min="1" max="20" value="8">
+              </label>
+            </div>
+            <div class="step-info" id="step-info"></div>
+          </div>
+        </div>
+        <div class="status" id="solve-status">Select a puzzle and click Solve.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DESIGNER PANEL ═══ -->
+  <div class="panel" id="panel-design">
+    <div class="designer-controls">
+      <div class="control-group">
+        <label>Rows</label>
+        <input type="number" id="d-rows" value="7" min="3" max="12">
+      </div>
+      <div class="control-group">
+        <label>Cols</label>
+        <input type="number" id="d-cols" value="7" min="3" max="12">
+      </div>
+      <div class="control-group">
+        <label>&nbsp;</label>
+        <button class="btn-secondary" id="btn-new-grid">New Grid</button>
+      </div>
+      <div class="control-group">
+        <label>&nbsp;</label>
+        <button id="btn-solve-custom">Solve Custom</button>
+      </div>
+      <div class="control-group">
+        <label>&nbsp;</label>
+        <button class="btn-secondary" id="btn-clear-grid">Clear</button>
+      </div>
+    </div>
+    <div class="tool-palette">
+      <button class="tool-btn active" data-tool="wall">Wall #</button>
+      <button class="tool-btn" data-tool="box">Box $</button>
+      <button class="tool-btn" data-tool="goal">Goal .</button>
+      <button class="tool-btn" data-tool="player">Player @</button>
+      <button class="tool-btn" data-tool="erase">Erase</button>
+    </div>
+    <div class="main-layout">
+      <div class="grid-area">
+        <div class="grid-container designer-grid" id="design-grid"></div>
+      </div>
+      <div class="controls-area">
+        <div id="design-playback" style="display:none">
+          <div class="control-group">
+            <label>Solution playback</label>
+            <div class="playback">
+              <button class="btn-secondary" id="btn-d-first">|&lt;</button>
+              <button class="btn-secondary" id="btn-d-prev">&lt;</button>
+              <button class="btn-secondary" id="btn-d-play">Play</button>
+              <button class="btn-secondary" id="btn-d-next">&gt;</button>
+              <button class="btn-secondary" id="btn-d-last">&gt;|</button>
+              <label style="margin-left:0.5rem; display:flex; align-items:center; gap:0.3rem;">
+                Speed <input type="range" id="d-speed-slider" min="1" max="20" value="8">
+              </label>
+            </div>
+            <div class="step-info" id="d-step-info"></div>
+          </div>
+        </div>
+        <div class="status" id="design-status">Click cells to place elements. Ensure equal boxes and goals, plus one player.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Symbols ───
+const SYMBOLS = {wall:'#', floor:' ', goal:'.', box:'$', player:'@', playerGoal:'+', boxGoal:'*'};
+const DIR = {U:[-1,0], D:[1,0], L:[0,-1], R:[0,1]};
+
+// ─── Parse level text into grid ───
+function parseGrid(text) {
+  const lines = text.split('\n');
+  const nrows = lines.length;
+  const ncols = Math.max(...lines.map(l => l.length));
+  const grid = [];
+  for (let r = 0; r < nrows; r++) {
+    const row = [];
+    for (let c = 0; c < ncols; c++) {
+      row.push(r < lines.length && c < lines[r].length ? lines[r][c] : ' ');
+    }
+    grid.push(row);
+  }
+  return grid;
+}
+
+// ─── Render grid to a container ───
+function renderGrid(container, grid) {
+  container.innerHTML = '';
+  for (let r = 0; r < grid.length; r++) {
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'grid-row';
+    for (let c = 0; c < grid[r].length; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell ' + cellClass(grid[r][c]);
+      cell.textContent = cellEmoji(grid[r][c]);
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      rowDiv.appendChild(cell);
+    }
+    container.appendChild(rowDiv);
+  }
+}
+
+function cellClass(ch) {
+  switch(ch) {
+    case '#': return 'cell-wall';
+    case '.': return 'cell-goal';
+    case '$': return 'cell-box';
+    case '*': return 'cell-box-on-goal';
+    case '@': return 'cell-player';
+    case '+': return 'cell-player-on-goal';
+    default:  return 'cell-floor';
+  }
+}
+
+function cellEmoji(ch) {
+  switch(ch) {
+    case '#': return '';
+    case '.': return '\u25CB';    // circle
+    case '$': return '\u25A0';    // filled square
+    case '*': return '\u25A0';
+    case '@': return '\u263A';    // smiley
+    case '+': return '\u263A';
+    default:  return '';
+  }
+}
+
+// ─── Apply one move to grid, return new grid ───
+function applyMove(grid, dir) {
+  // Find player
+  let pr = -1, pc = -1;
+  for (let r = 0; r < grid.length; r++)
+    for (let c = 0; c < grid[r].length; c++)
+      if (grid[r][c] === '@' || grid[r][c] === '+') { pr = r; pc = c; }
+
+  const [dr, dc] = DIR[dir];
+  const nr = pr + dr, nc = pc + dc;
+  const nnr = pr + 2*dr, nnc = pc + 2*dc;
+
+  // Deep copy
+  const g = grid.map(row => [...row]);
+
+  const target = g[nr][nc];
+  // Moving into box — push it
+  if (target === '$' || target === '*') {
+    const beyond = g[nnr][nnc];
+    g[nnr][nnc] = (beyond === '.' || beyond === '+') ? '*' : '$';
+    g[nr][nc] = (target === '*') ? '+' : '@';
+  } else {
+    g[nr][nc] = (target === '.') ? '+' : '@';
+  }
+  // Clear old player position
+  g[pr][pc] = (g[pr][pc] === '+' || grid[pr][pc] === '+') ? '.' : ' ';
+  // Fix: if old pos was player-on-goal, restore goal
+  if (grid[pr][pc] === '+') g[pr][pc] = '.';
+  else if (grid[pr][pc] === '@') g[pr][pc] = ' ';
+
+  return g;
+}
+
+// ─── Grid to text ───
+function gridToText(grid) {
+  return grid.map(row => row.join('')).join('\n');
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// SOLVE TAB
+// ═══════════════════════════════════════════════════════════
+
+let puzzles = {};
+let currentGrid = null;
+let solution = null;
+let solutionStates = [];
+let stepIndex = 0;
+let playInterval = null;
+
+const solveGrid = document.getElementById('solve-grid');
+const puzzleSelect = document.getElementById('puzzle-select');
+const btnSolve = document.getElementById('btn-solve');
+const playbackSection = document.getElementById('playback-section');
+const solveStatus = document.getElementById('solve-status');
+const stepInfo = document.getElementById('step-info');
+const speedSlider = document.getElementById('speed-slider');
+
+// Load puzzles
+fetch('/puzzles').then(r => r.json()).then(data => {
+  puzzles = data;
+  puzzleSelect.innerHTML = '';
+  for (const name of Object.keys(data)) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    puzzleSelect.appendChild(opt);
+  }
+  loadPuzzle(Object.keys(data)[0]);
+});
+
+puzzleSelect.addEventListener('change', () => {
+  stopPlayback();
+  loadPuzzle(puzzleSelect.value);
+});
+
+function loadPuzzle(name) {
+  const text = puzzles[name];
+  if (!text) return;
+  currentGrid = parseGrid(text);
+  renderGrid(solveGrid, currentGrid);
+  solution = null;
+  solutionStates = [];
+  playbackSection.style.display = 'none';
+  solveStatus.className = 'status';
+  solveStatus.textContent = 'Puzzle loaded. Click Solve.';
+}
+
+btnSolve.addEventListener('click', () => {
+  const name = puzzleSelect.value;
+  const text = puzzles[name];
+  if (!text) return;
+  stopPlayback();
+  btnSolve.disabled = true;
+  solveStatus.className = 'status';
+  solveStatus.textContent = 'Solving...';
+
+  fetch('/solve', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({puzzle: text})
+  })
+  .then(r => r.json())
+  .then(data => {
+    btnSolve.disabled = false;
+    if (data.error) {
+      solveStatus.className = 'status error';
+      solveStatus.textContent = data.error;
+      return;
+    }
+    solution = data.solution;
+    solveStatus.className = 'status success';
+    solveStatus.textContent = `Solved in ${data.moves} moves!`;
+    buildSolutionStates(currentGrid, solution);
+    playbackSection.style.display = 'block';
+    stepIndex = 0;
+    showStep(stepInfo, solutionStates, stepIndex, solution, solveGrid);
+  })
+  .catch(err => {
+    btnSolve.disabled = false;
+    solveStatus.className = 'status error';
+    solveStatus.textContent = 'Error: ' + err.message;
+  });
+});
+
+function buildSolutionStates(startGrid, sol) {
+  solutionStates = [startGrid];
+  let g = startGrid;
+  for (const ch of sol) {
+    g = applyMove(g, ch);
+    solutionStates.push(g);
+  }
+}
+
+function showStep(infoEl, states, idx, sol, gridEl) {
+  renderGrid(gridEl, states[idx]);
+  if (idx === 0) {
+    infoEl.textContent = `Step 0 / ${sol.length} (initial)`;
+  } else {
+    infoEl.textContent = `Step ${idx} / ${sol.length} (move: ${sol[idx-1]})`;
+  }
+}
+
+// Playback controls (solve tab)
+document.getElementById('btn-first').addEventListener('click', () => { stopPlayback(); stepIndex = 0; showStep(stepInfo, solutionStates, stepIndex, solution, solveGrid); });
+document.getElementById('btn-prev').addEventListener('click', () => { stopPlayback(); if (stepIndex > 0) stepIndex--; showStep(stepInfo, solutionStates, stepIndex, solution, solveGrid); });
+document.getElementById('btn-next').addEventListener('click', () => { stopPlayback(); if (stepIndex < solutionStates.length-1) stepIndex++; showStep(stepInfo, solutionStates, stepIndex, solution, solveGrid); });
+document.getElementById('btn-last').addEventListener('click', () => { stopPlayback(); stepIndex = solutionStates.length-1; showStep(stepInfo, solutionStates, stepIndex, solution, solveGrid); });
+document.getElementById('btn-play').addEventListener('click', togglePlayback);
+
+function getDelay() { return 600 - (speedSlider.value - 1) * 30; }
+
+function togglePlayback() {
+  if (playInterval) { stopPlayback(); return; }
+  document.getElementById('btn-play').textContent = 'Pause';
+  playInterval = setInterval(() => {
+    if (stepIndex >= solutionStates.length - 1) { stopPlayback(); return; }
+    stepIndex++;
+    showStep(stepInfo, solutionStates, stepIndex, solution, solveGrid);
+  }, getDelay());
+}
+
+function stopPlayback() {
+  if (playInterval) { clearInterval(playInterval); playInterval = null; }
+  document.getElementById('btn-play').textContent = 'Play';
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// DESIGNER TAB
+// ═══════════════════════════════════════════════════════════
+
+let designGrid = [];
+let designGoals = new Set(); // track goal positions under boxes/player
+let designTool = 'wall';
+let dSolution = null;
+let dStates = [];
+let dStep = 0;
+let dPlayInterval = null;
+
+const designGridEl = document.getElementById('design-grid');
+const designStatus = document.getElementById('design-status');
+const dStepInfo = document.getElementById('d-step-info');
+const dSpeedSlider = document.getElementById('d-speed-slider');
+
+function initDesignGrid() {
+  const rows = parseInt(document.getElementById('d-rows').value) || 7;
+  const cols = parseInt(document.getElementById('d-cols').value) || 7;
+  designGrid = [];
+  designGoals = new Set();
+  for (let r = 0; r < rows; r++) {
+    const row = [];
+    for (let c = 0; c < cols; c++) {
+      // Border walls
+      if (r === 0 || r === rows-1 || c === 0 || c === cols-1) row.push('#');
+      else row.push(' ');
+    }
+    designGrid.push(row);
+  }
+  renderDesignGrid();
+  clearDesignSolution();
+}
+
+function renderDesignGrid() {
+  renderGrid(designGridEl, designGrid);
+  // Add click handlers
+  designGridEl.querySelectorAll('.cell').forEach(cell => {
+    cell.addEventListener('mousedown', (e) => { paintDesignCell(cell); e.preventDefault(); });
+    cell.addEventListener('mouseenter', (e) => { if (e.buttons === 1) paintDesignCell(cell); });
+  });
+}
+
+function paintDesignCell(cell) {
+  const r = parseInt(cell.dataset.r);
+  const c = parseInt(cell.dataset.c);
+  const key = r + ',' + c;
+  const current = designGrid[r][c];
+
+  if (designTool === 'wall') {
+    if (current === '@' || current === '+') removePlayer();
+    designGoals.delete(key);
+    designGrid[r][c] = '#';
+  } else if (designTool === 'box') {
+    if (current === '@' || current === '+') removePlayer();
+    if (designGoals.has(key)) designGrid[r][c] = '*';
+    else designGrid[r][c] = '$';
+  } else if (designTool === 'goal') {
+    if (current === '@') { designGrid[r][c] = '+'; designGoals.add(key); }
+    else if (current === '$') { designGrid[r][c] = '*'; designGoals.add(key); }
+    else { designGrid[r][c] = '.'; designGoals.add(key); }
+  } else if (designTool === 'player') {
+    removePlayer();
+    if (designGoals.has(key)) designGrid[r][c] = '+';
+    else designGrid[r][c] = '@';
+  } else if (designTool === 'erase') {
+    if (current === '@' || current === '+') removePlayer();
+    if (designGoals.has(key)) { designGrid[r][c] = '.'; }
+    else { designGrid[r][c] = ' '; designGoals.delete(key); }
+  }
+  renderDesignGrid();
+}
+
+function removePlayer() {
+  for (let r = 0; r < designGrid.length; r++)
+    for (let c = 0; c < designGrid[r].length; c++) {
+      if (designGrid[r][c] === '@') designGrid[r][c] = ' ';
+      else if (designGrid[r][c] === '+') designGrid[r][c] = '.';
+    }
+}
+
+function clearDesignSolution() {
+  dSolution = null;
+  dStates = [];
+  dStep = 0;
+  document.getElementById('design-playback').style.display = 'none';
+}
+
+// Tool palette
+document.querySelectorAll('.tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    designTool = btn.dataset.tool;
+  });
+});
+
+document.getElementById('btn-new-grid').addEventListener('click', initDesignGrid);
+document.getElementById('btn-clear-grid').addEventListener('click', () => {
+  const rows = designGrid.length, cols = designGrid[0].length;
+  document.getElementById('d-rows').value = rows;
+  document.getElementById('d-cols').value = cols;
+  initDesignGrid();
+});
+
+document.getElementById('btn-solve-custom').addEventListener('click', () => {
+  stopDPlayback();
+  const text = gridToText(designGrid);
+  designStatus.className = 'status';
+  designStatus.textContent = 'Solving...';
+
+  fetch('/solve', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({puzzle: text})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      designStatus.className = 'status error';
+      designStatus.textContent = data.error;
+      return;
+    }
+    dSolution = data.solution;
+    designStatus.className = 'status success';
+    designStatus.textContent = `Solved in ${data.moves} moves!`;
+    dStates = [parseGrid(text)];
+    let g = dStates[0];
+    for (const ch of dSolution) { g = applyMove(g, ch); dStates.push(g); }
+    dStep = 0;
+    document.getElementById('design-playback').style.display = 'block';
+    showStep(dStepInfo, dStates, dStep, dSolution, designGridEl);
+  })
+  .catch(err => {
+    designStatus.className = 'status error';
+    designStatus.textContent = 'Error: ' + err.message;
+  });
+});
+
+// Designer playback
+document.getElementById('btn-d-first').addEventListener('click', () => { stopDPlayback(); dStep = 0; showStep(dStepInfo, dStates, dStep, dSolution, designGridEl); });
+document.getElementById('btn-d-prev').addEventListener('click', () => { stopDPlayback(); if (dStep > 0) dStep--; showStep(dStepInfo, dStates, dStep, dSolution, designGridEl); });
+document.getElementById('btn-d-next').addEventListener('click', () => { stopDPlayback(); if (dStep < dStates.length-1) dStep++; showStep(dStepInfo, dStates, dStep, dSolution, designGridEl); });
+document.getElementById('btn-d-last').addEventListener('click', () => { stopDPlayback(); dStep = dStates.length-1; showStep(dStepInfo, dStates, dStep, dSolution, designGridEl); });
+document.getElementById('btn-d-play').addEventListener('click', toggleDPlayback);
+
+function getDDelay() { return 600 - (dSpeedSlider.value - 1) * 30; }
+
+function toggleDPlayback() {
+  if (dPlayInterval) { stopDPlayback(); return; }
+  document.getElementById('btn-d-play').textContent = 'Pause';
+  dPlayInterval = setInterval(() => {
+    if (dStep >= dStates.length - 1) { stopDPlayback(); return; }
+    dStep++;
+    showStep(dStepInfo, dStates, dStep, dSolution, designGridEl);
+  }, getDDelay());
+}
+
+function stopDPlayback() {
+  if (dPlayInterval) { clearInterval(dPlayInterval); dPlayInterval = null; }
+  document.getElementById('btn-d-play').textContent = 'Play';
+}
+
+// ─── Tab switching ───
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// Init
+initDesignGrid();
+</script>
+</body>
+</html>
