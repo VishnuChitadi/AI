@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ultimate Tic-Tac-Toe</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <h1>Ultimate Tic-Tac-Toe</h1>
+
+  <div id="status-bar">Choose your side to begin.</div>
+
+  <div id="controls">
+    <button id="new-game-btn">New Game</button>
+    <label>AI Iterations:
+      <input id="iter-input" type="number" value="5000" min="100" max="50000" step="500" />
+    </label>
+  </div>
+
+  <div id="meta-board"></div>
+  <div id="thinking">AI is thinking...</div>
+
+  <!-- Overlay: player picker + game over -->
+  <div id="overlay" class="visible">
+    <div id="overlay-message">Pick your side</div>
+    <div id="picker">
+      <button class="pick-btn" id="pick-x">✕</button>
+      <button class="pick-btn" id="pick-o">○</button>
+    </div>
+    <button id="overlay-restart" style="display:none">Play Again</button>
+  </div>
+
+  <script src="/static/game.js"></script>
+</body>
+</html>

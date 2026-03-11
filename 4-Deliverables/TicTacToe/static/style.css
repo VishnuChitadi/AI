@@ -1,0 +1,204 @@
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+
+h1 {
+  font-size: 1.8rem;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+  color: #e0e0ff;
+}
+
+/* ===== Status bar ===== */
+#status-bar {
+  font-size: 1rem;
+  margin-bottom: 20px;
+  height: 24px;
+  color: #aac;
+}
+
+#status-bar span { font-weight: bold; color: #fff; }
+
+/* ===== Controls ===== */
+#controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#controls label { font-size: 0.9rem; color: #aac; }
+
+#iter-input {
+  width: 90px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #445;
+  background: #16213e;
+  color: #eee;
+  font-size: 0.9rem;
+}
+
+button {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background 0.15s, transform 0.1s;
+}
+
+button:active { transform: scale(0.97); }
+
+#new-game-btn {
+  background: #4f46e5;
+  color: #fff;
+}
+#new-game-btn:hover { background: #6366f1; }
+
+/* ===== Meta board ===== */
+#meta-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  background: #0f0f23;
+  border: 3px solid #334;
+  border-radius: 10px;
+  padding: 6px;
+}
+
+/* ===== Sub-board ===== */
+.sub-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  background: #1e1e3f;
+  border: 2px solid #334;
+  border-radius: 6px;
+  padding: 4px;
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.sub-board.active {
+  border-color: #6366f1;
+  box-shadow: 0 0 10px #6366f188;
+}
+
+.sub-board.won-X  { border-color: #f87171; }
+.sub-board.won-O  { border-color: #34d399; }
+.sub-board.drawn  { border-color: #888; opacity: 0.5; }
+
+/* ===== Macro overlay (big X / O on won boards) ===== */
+.macro-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  font-weight: 900;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 2;
+}
+.macro-overlay.X { color: #f87171; background: #f871710d; }
+.macro-overlay.O { color: #34d399; background: #34d3990d; }
+.macro-overlay.draw { color: #888; font-size: 2rem; background: #8882; }
+
+/* ===== Cells ===== */
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: default;
+  background: #16213e;
+  border: 1px solid #223;
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.cell.legal {
+  cursor: pointer;
+}
+.cell.legal:hover { background: #2a2a5e; }
+
+.cell.X { color: #f87171; }
+.cell.O { color: #34d399; }
+
+/* ===== Overlay screens ===== */
+#overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #000a;
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 20px;
+}
+#overlay.visible { display: flex; }
+
+#overlay-message {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  text-align: center;
+  padding: 0 24px;
+}
+
+/* ===== Thinking indicator ===== */
+#thinking {
+  display: none;
+  font-size: 1rem;
+  color: #6366f1;
+  margin-top: 10px;
+  animation: pulse 1s infinite;
+}
+#thinking.visible { display: block; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ===== Player picker ===== */
+#picker {
+  display: flex;
+  gap: 20px;
+}
+.pick-btn {
+  width: 80px;
+  height: 80px;
+  font-size: 2.5rem;
+  border-radius: 12px;
+  background: #16213e;
+  color: #eee;
+  border: 2px solid #445;
+}
+.pick-btn:hover { background: #2a2a5e; border-color: #6366f1; }
+
+/* Responsive */
+@media (max-width: 480px) {
+  .sub-board { width: 90px; height: 90px; }
+  .cell { font-size: 0.85rem; }
+  .macro-overlay { font-size: 3rem; }
+}
