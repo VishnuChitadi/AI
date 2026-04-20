@@ -1,0 +1,3 @@
+1. Why ReLu over sigmoid: It enables faster and deeper neural networks by easing the vanishign gradient problem and reducing computational costs.
+
+2. Leaky ReLU: In a standard ReLU, any negative input becomes exactly zero, which can cause nuerons to die and stop learnign entirely. Leaky ReLU adds a tiny slope to negative values, ensuring a small gradient always flows through the network so every neuron keeps updating
